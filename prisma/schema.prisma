@@ -1,0 +1,197 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Customers (referrers). Jobber fields are nullable so Phase 2 sync can
+// populate them later without a schema change.
+// ---------------------------------------------------------------------------
+model Customer {
+  id               String   @id @default(uuid())
+  jobberCustomerId String?  @unique
+  referralCode     String   @unique
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  referrals Referral[]
+  rewards   Reward[]
+
+  @@index([jobberCustomerId])
+}
+
+enum ServiceType {
+  HOUSE_WASHING
+  WINDOW_CLEANING
+  PRESSURE_WASHING
+  GUTTER_CLEANING
+  ROOF_WASHING
+  OTHER
+}
+
+enum ReferralStatus {
+  SUBMITTED
+  CONTACTED
+  ESTIMATE_SENT
+  BOOKED
+  JOB_COMPLETED
+  REWARD_EARNED
+  REWARD_PAID
+}
+
+model Referral {
+  id       String @id @default(uuid())
+
+  referrerId String
+  referrer   Customer @relation(fields: [referrerId], references: [id])
+
+  leadFirstName String
+  leadLastName  String
+  leadPhone     String
+  leadEmail     String
+  leadAddress   String
+  leadCity      String
+  leadZip       String
+
+  serviceRequested ServiceType
+  consentGiven     Boolean
+  consentText      String
+
+  status ReferralStatus @default(SUBMITTED)
+
+  estimatedJobValue Decimal? @db.Decimal(10, 2)
+  actualJobValue    Decimal? @db.Decimal(10, 2)
+
+  // Phase 2 — Jobber sync targets, unused until the integration is live.
+  jobberClientId String?
+  jobberQuoteId  String?
+  jobberJobId    String?
+
+  source            String  @default("referral_page")
+  duplicateOfId     String?
+  duplicateOf       Referral?  @relation("ReferralDuplicates", fields: [duplicateOfId], references: [id])
+  duplicateReferrals Referral[] @relation("ReferralDuplicates")
+
+  submittedIp String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events ReferralEvent[]
+  reward Reward?
+
+  @@index([referrerId])
+  @@index([status])
+  @@index([leadPhone])
+  @@index([leadEmail])
+  @@index([createdAt])
+}
+
+enum ReferralEventType {
+  STATUS_CHANGE
+  NOTE
+  JOBBER_SYNC
+  NOTIFICATION_SENT
+}
+
+model ReferralEvent {
+  id         String   @id @default(uuid())
+  referralId String
+  referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  eventType  ReferralEventType
+  fromStatus ReferralStatus?
+  toStatus   ReferralStatus?
+  note       String?
+  actor      String
+
+  createdAt DateTime @default(now())
+
+  @@index([referralId])
+}
+
+enum RewardType {
+  SERVICE_CREDIT
+  GIFT_CARD
+}
+
+enum RewardStatus {
+  PENDING
+  EARNED
+  PAID
+  VOIDED
+}
+
+model Reward {
+  id         String   @id @default(uuid())
+  referralId String   @unique
+  referral   Referral @relation(fields: [referralId], references: [id])
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  rewardType   RewardType
+  rewardAmount Decimal    @db.Decimal(10, 2)
+  status       RewardStatus @default(PENDING)
+
+  earnedAt DateTime?
+  paidAt   DateTime?
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+}
+
+enum AdminRole {
+  OWNER
+  ADMIN
+}
+
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(ADMIN)
+
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+}
+
+// Phase 2 — stores the single company-wide Jobber OAuth connection.
+// Tokens are encrypted at rest (see lib/jobber/crypto.ts); this table is
+// unused until JOBBER_CLIENT_ID/SECRET are configured.
+model JobberConnection {
+  id                    String   @id @default("singleton")
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String
+  scope                 String?
+  expiresAt             DateTime
+  connectedByAdminId    String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Single-row configuration table for the reward offer, editable from /admin/settings.
+model ReferralSettings {
+  id                       String   @id @default("singleton")
+  referredDiscountAmount   Decimal  @default(25) @db.Decimal(10, 2)
+  referrerCreditAmount     Decimal  @default(50) @db.Decimal(10, 2)
+  referrerGiftCardAmount   Decimal  @default(25) @db.Decimal(10, 2)
+  updatedAt                DateTime @updatedAt
+  updatedByAdminId         String?
+}
