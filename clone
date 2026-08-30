@@ -1,0 +1,4 @@
+git clone https://github.com/Djkapulka/JB-s-referral-page.git
+cd JB-s-referral-page
+git checkout claude/jbs-referral-system-8vtmft
+npm install
