@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateReferralCode } from "@/lib/referral-code";
+import { getAdminSession } from "@/lib/auth";
 
 const createCustomerSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -11,6 +12,11 @@ const createCustomerSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();

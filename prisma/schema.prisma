@@ -11,8 +11,8 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Customers (referrers). Jobber fields are nullable so Phase 2 sync can
-// populate them later without a schema change.
+// Customers (referrers). jobberCustomerId is nullable and unused in v1 —
+// reserved so a future Jobber sync can populate it without a schema change.
 // ---------------------------------------------------------------------------
 model Customer {
   id               String   @id @default(uuid())
@@ -73,7 +73,7 @@ model Referral {
   estimatedJobValue Decimal? @db.Decimal(10, 2)
   actualJobValue    Decimal? @db.Decimal(10, 2)
 
-  // Phase 2 — Jobber sync targets, unused until the integration is live.
+  // Reserved for a future Jobber sync — unused and unpopulated in v1.
   jobberClientId String?
   jobberQuoteId  String?
   jobberJobId    String?
@@ -170,20 +170,6 @@ model AdminUser {
 
   createdAt   DateTime  @default(now())
   lastLoginAt DateTime?
-}
-
-// Phase 2 — stores the single company-wide Jobber OAuth connection.
-// Tokens are encrypted at rest (see lib/jobber/crypto.ts); this table is
-// unused until JOBBER_CLIENT_ID/SECRET are configured.
-model JobberConnection {
-  id                    String   @id @default("singleton")
-  accessTokenEncrypted  String
-  refreshTokenEncrypted String
-  scope                 String?
-  expiresAt             DateTime
-  connectedByAdminId    String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
 }
 
 // Single-row configuration table for the reward offer, editable from /admin/settings.

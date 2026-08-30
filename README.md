@@ -1,9 +1,11 @@
 # JB's Exterior Cleaning — Referral Program
 
-"Give $25. Get $50." A referral web app for JB's Exterior Cleaning: every
-customer gets a unique link, referrals are tracked from submission through
-reward payout, and an admin dashboard manages the whole pipeline. Built to
-plug in Jobber's API later without a schema rewrite.
+"Give $25. Get $50." A standalone referral web app for JB's Exterior
+Cleaning: every customer gets a unique link, referrals are tracked from
+submission through reward payout, and an admin dashboard manages the whole
+pipeline. This v1 has no external CRM dependency — the database is simply
+*structured* so a Jobber integration could be added later without a schema
+rewrite, but nothing in this build talks to Jobber.
 
 ## Stack
 
@@ -40,16 +42,6 @@ Before deploying publicly, also set:
 - `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — without these, the bot-protection check is skipped entirely
 - `NEXT_PUBLIC_BASE_URL` — used to build absolute share links
 
-Jobber vars (`JOBBER_*`, `TOKEN_ENCRYPTION_KEY`) are Phase 2 — the app runs
-fine without them; the admin Settings page just shows Jobber as "Not
-Configured".
-
-## Recommended deployment
-
-Vercel (hosting) + Neon (Postgres). Set the same env vars in the Vercel
-project settings, then run `npx prisma migrate deploy` against the
-production `DATABASE_URL` as part of your deploy step.
-
 ## How it works
 
 - Every customer has a `referralCode` (e.g. `DENNIS-K8X2Q7`, generated in
@@ -67,18 +59,40 @@ production `DATABASE_URL` as part of your deploy step.
 - `/admin/settings` edits the reward offer amounts shown on the public page.
 - `/admin/admins` manages who can log in; only an `OWNER`-role admin can add
   new admin accounts.
+- `/api/health` is a simple uptime check for monitoring.
 
-## Jobber integration (Phase 2)
+## Future CRM integration
 
-The schema already carries nullable `jobberCustomerId` /
-`jobberClientId` / `jobberQuoteId` / `jobberJobId` fields, and
-`src/lib/jobber/` has the OAuth 2.0 scaffolding (authorize URL, token
-exchange/refresh, encrypted token storage) plus stub routes for the OAuth
-callback and webhook receiver. None of it makes a live GraphQL call yet —
-before wiring up any mutation, confirm the operation and required scopes
-against Jobber's current published GraphQL schema, and confirm the real
-webhook signature header/payload shape against their current docs before
-trusting `src/app/api/jobber/webhook/route.ts` beyond verify-and-log.
+`Customer` and `Referral` carry a few nullable, unused columns
+(`jobberCustomerId`, `jobberClientId`, `jobberQuoteId`, `jobberJobId`) purely
+so a future integration — Jobber or otherwise — can be added without an
+invasive migration. Nothing in this codebase reads or writes them, and there
+is no integration code of any kind in this build.
+
+## Production deployment
+
+Recommended: **Vercel** (hosting) + **Neon** (Postgres) — both have free
+tiers and need no local setup on your end besides an account.
+
+1. Create a Neon Postgres project, copy its connection string.
+2. Create a Vercel project from this GitHub repo (branch `claude/jbs-referral-system-8vtmft`, or merge it to `main` first).
+3. In Vercel's project settings, add every variable from `.env.example` (at minimum `DATABASE_URL`, `AUTH_SECRET`; strongly recommended before real traffic: `UPSTASH_REDIS_REST_URL`/`TOKEN` and `TURNSTILE_*`; set `NEXT_PUBLIC_BASE_URL` to your real domain).
+4. Deploy. `postinstall` runs `prisma generate` automatically as part of the Vercel build, so no extra build config is needed.
+5. Run the schema migration against the production database once, from your machine: `DATABASE_URL="<your prod url>" npx prisma migrate deploy`.
+6. Run the seed script the same way to create your first admin login: `DATABASE_URL="<your prod url>" ADMIN_SEED_EMAIL=... ADMIN_SEED_PASSWORD=... ADMIN_SEED_NAME=... npm run seed`.
+7. (Optional) Point your own domain at the Vercel project.
+
+Re-run step 5 (`prisma migrate deploy`) any time the schema changes in a future update — it's safe to run repeatedly, it only applies migrations that haven't been applied yet.
+
+## Security notes
+
+- Admin sessions are signed JWTs in an `httpOnly`, `sameSite=lax` cookie; `AUTH_SECRET` must be a strong random value in production — the app refuses to start a session without one long enough.
+- All admin routes and APIs are gated by `src/middleware.ts`, which rejects any request to `/admin/*` or `/api/admin/*` without a valid session.
+- Passwords are hashed with bcrypt (cost 12); login always runs a bcrypt compare even for a nonexistent email, so response timing doesn't leak which emails exist.
+- The public referral submission endpoint is rate-limited by IP, checks a Cloudflare Turnstile token, rejects an obviously bot-filled honeypot field with a fake success response, and validates every field server-side with Zod regardless of client-side checks.
+- Security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) are set globally in `next.config.ts`.
+- `/robots.txt` disallows crawling `/admin`.
+- All database access goes through Prisma's parameterized queries — no raw SQL string interpolation anywhere in the app.
 
 ## Scripts
 
@@ -87,3 +101,4 @@ trusting `src/app/api/jobber/webhook/route.ts` beyond verify-and-log.
 - `npm run seed` — creates the seed admin + default settings (idempotent)
 - `npx prisma studio` — browse the database
 - `npx prisma migrate dev --name <name>` — new migration during development
+- `npx prisma migrate deploy` — apply pending migrations to production

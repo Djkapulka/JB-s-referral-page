@@ -1,7 +1,6 @@
 import { getReferralSettings } from "@/lib/rewards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsForm } from "@/components/admin/settings-form";
-import { JobberStatus } from "./jobber-status";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +29,6 @@ export default async function SettingsPage() {
           />
         </CardContent>
       </Card>
-
-      <JobberStatus />
     </div>
   );
 }
