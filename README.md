@@ -72,17 +72,24 @@ is no integration code of any kind in this build.
 ## Production deployment
 
 Recommended: **Vercel** (hosting) + **Neon** (Postgres) — both have free
-tiers and need no local setup on your end besides an account.
+tiers and need no local setup on your end besides an account. The build
+pipeline is fully self-contained — no terminal commands or database
+credentials ever need to leave Vercel's dashboard:
+
+- `postinstall` runs `prisma generate`
+- `build` runs `prisma migrate deploy` (applies any pending schema migrations) before `next build`
+- `postbuild` runs the seed script, which creates your first admin login the moment `ADMIN_SEED_EMAIL`/`ADMIN_SEED_PASSWORD`/`ADMIN_SEED_NAME` are set as environment variables — and safely no-ops (never fails the deploy) if they aren't set yet
+
+Steps:
 
 1. Create a Neon Postgres project, copy its connection string.
 2. Create a Vercel project from this GitHub repo (branch `claude/jbs-referral-system-8vtmft`, or merge it to `main` first).
-3. In Vercel's project settings, add every variable from `.env.example` (at minimum `DATABASE_URL`, `AUTH_SECRET`; strongly recommended before real traffic: `UPSTASH_REDIS_REST_URL`/`TOKEN` and `TURNSTILE_*`; set `NEXT_PUBLIC_BASE_URL` to your real domain).
-4. Deploy. `postinstall` runs `prisma generate` automatically as part of the Vercel build, so no extra build config is needed.
-5. Run the schema migration against the production database once, from your machine: `DATABASE_URL="<your prod url>" npx prisma migrate deploy`.
-6. Run the seed script the same way to create your first admin login: `DATABASE_URL="<your prod url>" ADMIN_SEED_EMAIL=... ADMIN_SEED_PASSWORD=... ADMIN_SEED_NAME=... npm run seed`.
-7. (Optional) Point your own domain at the Vercel project.
+3. In Vercel's project settings → Environment Variables, add every variable from `.env.example`: at minimum `DATABASE_URL` and `AUTH_SECRET`; add `ADMIN_SEED_EMAIL`/`ADMIN_SEED_PASSWORD`/`ADMIN_SEED_NAME` to get your first login created automatically; strongly recommended before real traffic: `UPSTASH_REDIS_REST_URL`/`TOKEN` and `TURNSTILE_*`; set `NEXT_PUBLIC_BASE_URL` to your real domain.
+4. Deploy. Migrations apply and your admin account is created automatically as part of the build — check the build log for a line like `Admin ready: you@example.com`.
+5. Log in at `https://<your-domain>/admin/login`.
+6. (Optional) Point your own domain at the Vercel project.
 
-Re-run step 5 (`prisma migrate deploy`) any time the schema changes in a future update — it's safe to run repeatedly, it only applies migrations that haven't been applied yet.
+Every future deploy re-runs the same pipeline automatically — new schema migrations apply themselves, and the admin bootstrap step is a no-op once your admin account already exists.
 
 ## Security notes
 
