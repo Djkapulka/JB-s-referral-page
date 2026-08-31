@@ -5,6 +5,9 @@ import { SERVICE_LABELS } from "@/lib/validation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/admin/stat-card";
+import { ReferralActions } from "@/components/admin/referral-actions";
+import { getReferralUrl } from "@/lib/site-url";
+import { getReferralSettings } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +21,10 @@ export default async function CustomerDetailPage({
 
   if (!customer) notFound();
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-  const referralUrl = `${baseUrl}/r/${customer.referralCode}`;
+  const referralUrl = await getReferralUrl(customer.referralCode);
+  const settings = await getReferralSettings();
+  const referredAmount = Number(settings.referredDiscountAmount);
+  const creditAmount = Number(settings.referrerCreditAmount);
 
   return (
     <div className="flex flex-col gap-6">
@@ -36,6 +41,14 @@ export default async function CustomerDetailPage({
             {referralUrl}
           </Link>
         </p>
+        <div className="mt-3">
+          <ReferralActions
+            referralUrl={referralUrl}
+            phone={customer.phone}
+            referredAmount={referredAmount}
+            creditAmount={creditAmount}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

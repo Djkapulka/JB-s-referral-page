@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AddCustomerForm } from "@/components/admin/add-customer-form";
+import { ReferralActions } from "@/components/admin/referral-actions";
+import { getBaseUrl } from "@/lib/site-url";
+import { getReferralSettings } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +16,13 @@ export default async function CustomersPage({
   searchParams: Promise<{ query?: string }>;
 }) {
   const params = await searchParams;
-  const customers = await searchCustomers(params.query);
+  const [customers, baseUrl, settings] = await Promise.all([
+    searchCustomers(params.query),
+    getBaseUrl(),
+    getReferralSettings(),
+  ]);
+  const referredAmount = Number(settings.referredDiscountAmount);
+  const creditAmount = Number(settings.referrerCreditAmount);
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,12 +60,13 @@ export default async function CustomersPage({
                 <th className="p-3 font-medium">Successful</th>
                 <th className="p-3 font-medium">Rewards Earned</th>
                 <th className="p-3 font-medium">Rewards Redeemed</th>
+                <th className="p-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={8} className="p-6 text-center text-muted-foreground">
                     No customers found.
                   </td>
                 </tr>
@@ -80,6 +90,15 @@ export default async function CustomersPage({
                   <td className="p-3">{c.successfulReferrals}</td>
                   <td className="p-3">${c.rewardsEarned}</td>
                   <td className="p-3">${c.rewardsRedeemed}</td>
+                  <td className="p-3">
+                    <ReferralActions
+                      referralUrl={`${baseUrl}/r/${c.referralCode}`}
+                      phone={c.phone}
+                      referredAmount={referredAmount}
+                      creditAmount={creditAmount}
+                      compact
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

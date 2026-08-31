@@ -3,6 +3,7 @@ import { getCustomerByReferralCode, getCustomerReferralSummary } from "@/lib/cus
 import { ReferralForm } from "@/components/referral-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { getReferralSettings } from "@/lib/rewards";
+import { getReferralUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,7 @@ export default async function ReferPage({
 
   const settings = await getReferralSettings();
   const summary = await getCustomerReferralSummary(customer.id);
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-  const referralUrl = `${baseUrl}/r/${customer.referralCode}`;
+  const referralUrl = await getReferralUrl(customer.referralCode);
 
   const referredAmount = Number(settings.referredDiscountAmount);
   const creditAmount = Number(settings.referrerCreditAmount);
