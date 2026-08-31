@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/admin/stat-card";
 import { ReferralActions } from "@/components/admin/referral-actions";
+import { CustomerLifecycleActions } from "@/components/admin/customer-lifecycle-actions";
 import { getReferralUrl } from "@/lib/site-url";
 import { getReferralSettings } from "@/lib/rewards";
 
@@ -47,6 +48,16 @@ export default async function CustomerDetailPage({
             phone={customer.phone}
             referredAmount={referredAmount}
             creditAmount={creditAmount}
+            isActive={customer.isActive}
+          />
+        </div>
+        <div className="mt-3">
+          <CustomerLifecycleActions
+            customerId={customer.id}
+            customerName={`${customer.firstName} ${customer.lastName}`}
+            referralCode={customer.referralCode}
+            isActive={customer.isActive}
+            canDelete={customer.canDelete}
           />
         </div>
       </div>

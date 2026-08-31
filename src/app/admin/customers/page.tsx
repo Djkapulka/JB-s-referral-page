@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AddCustomerForm } from "@/components/admin/add-customer-form";
 import { ReferralActions } from "@/components/admin/referral-actions";
+import { CustomerLifecycleActions, StatusBadge } from "@/components/admin/customer-lifecycle-actions";
 import { getBaseUrl } from "@/lib/site-url";
 import { getReferralSettings } from "@/lib/rewards";
 
@@ -55,6 +56,7 @@ export default async function CustomersPage({
               <tr className="border-b border-border bg-muted/50 text-left text-muted-foreground">
                 <th className="p-3 font-medium">Customer</th>
                 <th className="p-3 font-medium">Referral Code</th>
+                <th className="p-3 font-medium">Status</th>
                 <th className="p-3 font-medium">Total Referrals</th>
                 <th className="p-3 font-medium">Pending</th>
                 <th className="p-3 font-medium">Successful</th>
@@ -66,7 +68,7 @@ export default async function CustomersPage({
             <tbody>
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={9} className="p-6 text-center text-muted-foreground">
                     No customers found.
                   </td>
                 </tr>
@@ -85,19 +87,33 @@ export default async function CustomersPage({
                     </div>
                   </td>
                   <td className="p-3 font-mono text-xs">{c.referralCode}</td>
+                  <td className="p-3">
+                    <StatusBadge isActive={c.isActive} />
+                  </td>
                   <td className="p-3">{c.totalReferrals}</td>
                   <td className="p-3">{c.pendingReferrals}</td>
                   <td className="p-3">{c.successfulReferrals}</td>
                   <td className="p-3">${c.rewardsEarned}</td>
                   <td className="p-3">${c.rewardsRedeemed}</td>
                   <td className="p-3">
-                    <ReferralActions
-                      referralUrl={`${baseUrl}/r/${c.referralCode}`}
-                      phone={c.phone}
-                      referredAmount={referredAmount}
-                      creditAmount={creditAmount}
-                      compact
-                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <ReferralActions
+                        referralUrl={`${baseUrl}/r/${c.referralCode}`}
+                        phone={c.phone}
+                        referredAmount={referredAmount}
+                        creditAmount={creditAmount}
+                        isActive={c.isActive}
+                        compact
+                      />
+                      <CustomerLifecycleActions
+                        customerId={c.id}
+                        customerName={`${c.firstName} ${c.lastName}`}
+                        referralCode={c.referralCode}
+                        isActive={c.isActive}
+                        canDelete={c.canDelete}
+                        compact
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -64,7 +64,11 @@ export async function POST(req: NextRequest) {
     where: { referralCode: data.referralCode },
   });
 
-  if (!referrer) {
+  // Treat an inactive link identically to a nonexistent one — the public
+  // page already hides the form for these, this is the server-side backstop
+  // against a direct API call bypassing that UI. Same message either way so
+  // the response never reveals whether a code exists but was deactivated.
+  if (!referrer || !referrer.isActive) {
     return NextResponse.json({ message: "Referral link not found." }, { status: 404 });
   }
 

@@ -53,6 +53,7 @@ function summarizeCustomer<
     email: string | null;
     phone: string | null;
     referralCode: string;
+    isActive: boolean;
     createdAt: Date;
     referrals: { status: string }[];
     rewards: { status: string; rewardAmount: unknown }[];
@@ -79,11 +80,16 @@ function summarizeCustomer<
     email: c.email,
     phone: c.phone,
     referralCode: c.referralCode,
+    isActive: c.isActive,
     createdAt: c.createdAt,
     totalReferrals,
     pendingReferrals,
     successfulReferrals,
     rewardsEarned,
     rewardsRedeemed,
+    // Deleting a customer with any referral or reward history is blocked at
+    // the database level (ON DELETE RESTRICT) — this mirrors that check so
+    // the UI can steer admins toward deactivation instead of a failed delete.
+    canDelete: c.referrals.length === 0 && c.rewards.length === 0,
   };
 }

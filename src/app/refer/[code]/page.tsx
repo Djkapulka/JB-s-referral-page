@@ -19,6 +19,10 @@ export default async function ReferPage({
     notFound();
   }
 
+  if (!customer.isActive) {
+    return <InactiveReferralLink />;
+  }
+
   const settings = await getReferralSettings();
   const summary = await getCustomerReferralSummary(customer.id);
   const referralUrl = await getReferralUrl(customer.referralCode);
@@ -107,6 +111,30 @@ export default async function ReferPage({
         By submitting, you confirm the person you&apos;re referring is aware
         and okay with JB&apos;s Exterior Cleaning reaching out to them.
       </p>
+    </main>
+  );
+}
+
+// Intentionally reveals nothing about who this link belonged to — no name,
+// no reason, no admin details. Just enough for a legitimate visitor to know
+// what to do next.
+function InactiveReferralLink() {
+  return (
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-4 px-4 py-10 text-center">
+      <span className="text-sm font-semibold uppercase tracking-wide text-brand">
+        JB&apos;s Exterior Cleaning
+      </span>
+      <Card className="w-full">
+        <CardContent className="flex flex-col gap-3 p-8">
+          <h1 className="text-2xl font-bold">
+            This referral link is no longer active.
+          </h1>
+          <p className="text-muted-foreground">
+            Please contact JB&apos;s Exterior Cleaning if you believe you
+            received this message by mistake.
+          </p>
+        </CardContent>
+      </Card>
     </main>
   );
 }

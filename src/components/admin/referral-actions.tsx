@@ -34,12 +34,14 @@ export function ReferralActions({
   phone,
   referredAmount,
   creditAmount,
+  isActive = true,
   compact = false,
 }: {
   referralUrl: string;
   phone: string | null;
   referredAmount: number;
   creditAmount: number;
+  isActive?: boolean;
   compact?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -55,8 +57,17 @@ export function ReferralActions({
   }
 
   const phoneUsable = hasUsablePhone(phone);
+  const canText = phoneUsable && isActive;
   const message = buildReferralMessage(referralUrl, referredAmount, creditAmount);
-  const smsHref = phoneUsable ? buildSmsHref(phone, message) : undefined;
+  const smsHref = canText ? buildSmsHref(phone, message) : undefined;
+
+  const copyDisabledReason = !isActive ? "Referral link is deactivated" : undefined;
+  const textDisabledReason = !isActive
+    ? "Referral link is deactivated"
+    : !phoneUsable
+      ? "No phone number on file"
+      : undefined;
+  const viewLabel = isActive ? "View Referral Page" : "Preview Inactive Page";
 
   if (compact) {
     return (
@@ -67,12 +78,13 @@ export function ReferralActions({
           size="icon"
           className="h-8 w-8"
           onClick={handleCopy}
-          title={copied ? "Copied!" : "Copy referral link"}
+          disabled={!isActive}
+          title={copyDisabledReason ?? (copied ? "Copied!" : "Copy referral link")}
           aria-label="Copy referral link"
         >
           {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
         </Button>
-        {phoneUsable ? (
+        {canText ? (
           <a href={smsHref} title="Text customer" aria-label="Text customer">
             <Button type="button" variant="outline" size="icon" className="h-8 w-8">
               <MessageSquareText className="h-4 w-4" />
@@ -85,8 +97,8 @@ export function ReferralActions({
             size="icon"
             className="h-8 w-8"
             disabled
-            title="No phone number on file"
-            aria-label="Text customer (no phone number on file)"
+            title={textDisabledReason}
+            aria-label={`Text customer (${textDisabledReason})`}
           >
             <MessageSquareText className="h-4 w-4" />
           </Button>
@@ -95,8 +107,8 @@ export function ReferralActions({
           href={referralUrl}
           target="_blank"
           rel="noopener noreferrer"
-          title="View referral page"
-          aria-label="View referral page"
+          title={viewLabel}
+          aria-label={viewLabel}
         >
           <Button type="button" variant="outline" size="icon" className="h-8 w-8">
             <ExternalLink className="h-4 w-4" />
@@ -108,7 +120,14 @@ export function ReferralActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleCopy}
+        disabled={!isActive}
+        title={copyDisabledReason}
+      >
         {copied ? (
           <Check className="h-4 w-4 text-success" />
         ) : (
@@ -117,7 +136,7 @@ export function ReferralActions({
         {copied ? "Copied!" : "Copy Link"}
       </Button>
 
-      {phoneUsable ? (
+      {canText ? (
         <a href={smsHref}>
           <Button type="button" variant="outline" size="sm">
             <MessageSquareText className="h-4 w-4" />
@@ -125,13 +144,7 @@ export function ReferralActions({
           </Button>
         </a>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled
-          title="No phone number on file for this customer"
-        >
+        <Button type="button" variant="outline" size="sm" disabled title={textDisabledReason}>
           <MessageSquareText className="h-4 w-4" />
           Text Customer
         </Button>
@@ -140,11 +153,11 @@ export function ReferralActions({
       <a href={referralUrl} target="_blank" rel="noopener noreferrer">
         <Button type="button" variant="outline" size="sm">
           <ExternalLink className="h-4 w-4" />
-          View Referral Page
+          {viewLabel}
         </Button>
       </a>
 
-      {!phoneUsable && (
+      {isActive && !phoneUsable && (
         <span className="text-xs text-muted-foreground">
           No phone number on file — add one to enable texting.
         </span>
