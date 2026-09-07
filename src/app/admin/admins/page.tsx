@@ -1,16 +1,16 @@
-import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
+import { getAdminList } from "@/lib/admin-management";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddAdminForm } from "@/components/admin/add-admin-form";
+import { AdminActionsMenu } from "@/components/admin/admin-actions-menu";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminsPage() {
   const session = await getAdminSession();
-  const admins = await prisma.adminUser.findMany({
-    orderBy: { createdAt: "asc" },
-  });
+  const admins = await getAdminList();
+  const isOwner = session?.role === "OWNER";
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,7 +21,7 @@ export default async function AdminsPage() {
             People who can log into the JB&apos;s admin dashboard.
           </p>
         </div>
-        {session?.role === "OWNER" && <AddAdminForm />}
+        {isOwner && <AddAdminForm />}
       </div>
 
       <Card>
@@ -32,20 +32,35 @@ export default async function AdminsPage() {
                 <th className="p-3 font-medium">Name</th>
                 <th className="p-3 font-medium">Email</th>
                 <th className="p-3 font-medium">Role</th>
-                <th className="p-3 font-medium">Last Login</th>
+                <th className="p-3 font-medium">Status</th>
+                {isOwner && <th className="p-3 font-medium text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {admins.map((a) => (
                 <tr key={a.id} className="border-b border-border last:border-0">
-                  <td className="p-3">{a.name}</td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      {a.name}
+                      {a.id === session?.adminId && (
+                        <Badge variant="default">You</Badge>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-3">{a.email}</td>
                   <td className="p-3">
                     <Badge variant={a.role === "OWNER" ? "accent" : "default"}>{a.role}</Badge>
                   </td>
                   <td className="p-3">
-                    {a.lastLoginAt ? a.lastLoginAt.toLocaleString() : "Never"}
+                    <Badge variant={a.isActive ? "success" : "muted"}>
+                      {a.isActive ? "Active" : "Inactive"}
+                    </Badge>
                   </td>
+                  {isOwner && (
+                    <td className="p-3 text-right">
+                      <AdminActionsMenu admin={a} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -53,9 +68,9 @@ export default async function AdminsPage() {
         </CardContent>
       </Card>
 
-      {session?.role !== "OWNER" && (
+      {!isOwner && (
         <p className="text-sm text-muted-foreground">
-          Only an owner-level admin can add new admin accounts.
+          Only an owner-level admin can manage admin accounts.
         </p>
       )}
     </div>

@@ -171,9 +171,65 @@ model AdminUser {
   passwordHash String
   name         String
   role         AdminRole @default(ADMIN)
+  // Deactivated admins cannot log in and are denied on their next
+  // authenticated request even with a still-valid session cookie.
+  isActive     Boolean   @default(true)
+  // Set true after an OWNER resets this admin's password with "require
+  // change on next login" — forces them through /admin/change-password
+  // before they can use anything else.
+  mustChangePassword Boolean @default(false)
 
   createdAt   DateTime  @default(now())
   lastLoginAt DateTime?
+
+  activityLogs ActivityLog[]
+}
+
+// Actions worth auditing across the admin dashboard. Deliberately excludes
+// routine reads/page views — only state-changing actions land here.
+enum ActivityAction {
+  ADMIN_CREATED
+  ADMIN_EDITED
+  ADMIN_ROLE_CHANGED
+  ADMIN_DEACTIVATED
+  ADMIN_REACTIVATED
+  ADMIN_PASSWORD_RESET
+  ADMIN_DELETED
+  CUSTOMER_CREATED
+  CUSTOMER_DELETED
+  CUSTOMER_LINK_DEACTIVATED
+  CUSTOMER_LINK_REACTIVATED
+  REFERRAL_STATUS_CHANGED
+  REWARD_STATUS_CHANGED
+  SETTINGS_CHANGED
+}
+
+// Append-only audit trail. adminId/adminName/adminEmail are captured at
+// write time (not joined live) so a record always reads correctly even if
+// the acting admin's name, email, or account is later changed — deleting an
+// admin is blocked while they still have rows here (see the admin DELETE
+// route), so this history can never be silently orphaned.
+model ActivityLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  admin      AdminUser @relation(fields: [adminId], references: [id])
+  adminName  String
+  adminEmail String
+
+  action      ActivityAction
+  targetType  String?
+  targetId    String?
+  description String
+  // Safe before/after context only — never passwords, hashes, tokens, or
+  // other secrets.
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }
 
 // Single-row configuration table for the reward offer, editable from /admin/settings.

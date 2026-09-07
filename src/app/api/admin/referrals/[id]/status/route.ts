@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
-import { statusUpdateSchema } from "@/lib/validation";
+import { statusUpdateSchema, REFERRAL_STATUS_LABELS } from "@/lib/validation";
 import { updateReferralStatus } from "@/lib/referral-status";
+import { logActivity } from "@/lib/activity-log";
 
 export async function PATCH(
   req: NextRequest,
@@ -35,6 +37,47 @@ export async function PATCH(
       actualJobValue: parsed.data.actualJobValue,
       estimatedJobValue: parsed.data.estimatedJobValue,
     });
+
+    const leadName = `${updated.leadFirstName} ${updated.leadLastName}`;
+    const statusLabel = REFERRAL_STATUS_LABELS[updated.status];
+
+    await logActivity({
+      admin: session,
+      action: "REFERRAL_STATUS_CHANGED",
+      targetType: "Referral",
+      targetId: updated.id,
+      description: `Referral marked ${statusLabel} for ${leadName}`,
+      metadata: { before: updated.fromStatus, after: updated.status },
+    });
+
+    if (updated.status === "JOB_COMPLETED") {
+      const reward = await prisma.reward.findUnique({ where: { referralId: updated.id } });
+      if (reward) {
+        await logActivity({
+          admin: session,
+          action: "REWARD_STATUS_CHANGED",
+          targetType: "Reward",
+          targetId: reward.id,
+          description: `Reward earned for ${leadName}'s referral ($${reward.rewardAmount})`,
+          metadata: { status: reward.status, amount: reward.rewardAmount.toString() },
+        });
+      }
+    }
+
+    if (updated.status === "REWARD_PAID") {
+      const reward = await prisma.reward.findUnique({ where: { referralId: updated.id } });
+      if (reward) {
+        await logActivity({
+          admin: session,
+          action: "REWARD_STATUS_CHANGED",
+          targetType: "Reward",
+          targetId: reward.id,
+          description: `Reward marked paid for ${leadName}'s referral ($${reward.rewardAmount})`,
+          metadata: { status: reward.status, amount: reward.rewardAmount.toString() },
+        });
+      }
+    }
+
     return NextResponse.json({ ok: true, referral: updated });
   } catch (err) {
     console.error("Failed to update referral status", err);

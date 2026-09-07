@@ -48,12 +48,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Invalid email or password." }, { status: 401 });
   }
 
-  await createAdminSession({
-    adminId: admin.id,
-    email: admin.email,
-    name: admin.name,
-    role: admin.role,
-  });
+  if (!admin.isActive) {
+    return NextResponse.json(
+      { message: "This admin account has been deactivated." },
+      { status: 403 },
+    );
+  }
+
+  await createAdminSession(admin.id);
 
   await prisma.adminUser.update({
     where: { id: admin.id },

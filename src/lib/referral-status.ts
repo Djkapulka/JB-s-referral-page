@@ -54,6 +54,6 @@ export async function updateReferralStatus({
       });
     }
 
-    return updated;
+    return { ...updated, fromStatus: current.status };
   });
 }

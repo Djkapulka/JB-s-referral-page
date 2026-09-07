@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getAdminSession, hashPassword } from "@/lib/auth";
+import { hashPassword, requireOwnerSession } from "@/lib/auth";
+import { passwordSchema } from "@/lib/validation";
+import { logActivity } from "@/lib/activity-log";
 
 const createAdminSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email(),
-  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+  password: passwordSchema,
   role: z.enum(["OWNER", "ADMIN"]),
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  const check = await requireOwnerSession();
+  if (!check.ok) {
+    return NextResponse.json({ message: check.message }, { status: check.status });
   }
-  if (session.role !== "OWNER") {
-    return NextResponse.json(
-      { message: "Only an owner can add new admin accounts." },
-      { status: 403 },
-    );
-  }
+  const { session } = check;
 
   let body: unknown;
   try {
@@ -56,6 +53,14 @@ export async function POST(req: NextRequest) {
       passwordHash,
       role: parsed.data.role,
     },
+  });
+
+  await logActivity({
+    admin: session,
+    action: "ADMIN_CREATED",
+    targetType: "AdminUser",
+    targetId: admin.id,
+    description: `Admin account created for ${admin.name} (${admin.email}, ${admin.role})`,
   });
 
   return NextResponse.json(

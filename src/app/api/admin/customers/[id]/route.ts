@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 import { Prisma } from "@/generated/prisma/client";
 
 const HISTORY_BLOCKED_MESSAGE =
@@ -44,6 +45,14 @@ export async function DELETE(
     }
     throw err;
   }
+
+  await logActivity({
+    admin: session,
+    action: "CUSTOMER_DELETED",
+    targetType: "Customer",
+    targetId: customer.id,
+    description: `Customer permanently deleted: ${customer.firstName} ${customer.lastName} (${customer.referralCode})`,
+  });
 
   return NextResponse.json({ ok: true });
 }

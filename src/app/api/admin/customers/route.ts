@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateReferralCode } from "@/lib/referral-code";
 import { getAdminSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 
 const createCustomerSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
       phone: parsed.data.phone || null,
       referralCode,
     },
+  });
+
+  await logActivity({
+    admin: session,
+    action: "CUSTOMER_CREATED",
+    targetType: "Customer",
+    targetId: customer.id,
+    description: `Customer created: ${customer.firstName} ${customer.lastName} (${customer.referralCode})`,
   });
 
   return NextResponse.json({ ok: true, customer }, { status: 201 });

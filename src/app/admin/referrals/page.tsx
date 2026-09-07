@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { searchReferrals } from "@/lib/admin-referrals";
-import { SERVICE_LABELS } from "@/lib/validation";
+import { SERVICE_LABELS, REFERRAL_STATUS_LABELS } from "@/lib/validation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,15 +10,7 @@ import type { ReferralStatus } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_LABELS: Record<ReferralStatus, string> = {
-  SUBMITTED: "Submitted",
-  CONTACTED: "Contacted",
-  ESTIMATE_SENT: "Estimate Sent",
-  BOOKED: "Booked",
-  JOB_COMPLETED: "Job Completed",
-  REWARD_EARNED: "Reward Earned",
-  REWARD_PAID: "Reward Paid",
-};
+const STATUS_LABELS = REFERRAL_STATUS_LABELS;
 
 const STATUS_VARIANTS: Record<ReferralStatus, "default" | "accent" | "success" | "muted"> = {
   SUBMITTED: "muted",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
 
 export async function POST(
   _req: Request,
@@ -21,6 +22,14 @@ export async function POST(
   const updated = await prisma.customer.update({
     where: { id },
     data: { isActive: false },
+  });
+
+  await logActivity({
+    admin: session,
+    action: "CUSTOMER_LINK_DEACTIVATED",
+    targetType: "Customer",
+    targetId: updated.id,
+    description: `Referral link deactivated for ${updated.firstName} ${updated.lastName} (${updated.referralCode})`,
   });
 
   return NextResponse.json({ ok: true, customer: updated });

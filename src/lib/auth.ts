@@ -2,6 +2,7 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
 
 const SESSION_COOKIE = "jbs_admin_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 8; // 8 hours
@@ -21,6 +22,7 @@ export type AdminSessionPayload = {
   email: string;
   name: string;
   role: "OWNER" | "ADMIN";
+  mustChangePassword: boolean;
 };
 
 export async function hashPassword(password: string): Promise<string> {
@@ -34,8 +36,13 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function createAdminSession(payload: AdminSessionPayload) {
-  const token = await new SignJWT({ ...payload })
+// The JWT only ever proves "this adminId authenticated and the token hasn't
+// expired." Role, active status, and mustChangePassword are always read
+// fresh from the database (see getAdminSession) rather than trusted from a
+// potentially-stale token — so a deactivation or role change takes effect
+// on the very next request, not just the next login.
+export async function createAdminSession(adminId: string) {
+  const token = await new SignJWT({ adminId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DURATION_SECONDS}s`)
@@ -56,15 +63,48 @@ export async function clearAdminSession() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function getAdminSession(): Promise<AdminSessionPayload | null> {
+async function getSessionAdminId(): Promise<string | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
   try {
     const { payload } = await jwtVerify(token, getSecretKey());
-    return payload as unknown as AdminSessionPayload;
+    const adminId = (payload as { adminId?: unknown }).adminId;
+    return typeof adminId === "string" ? adminId : null;
   } catch {
     return null;
   }
+}
+
+export async function getAdminSession(): Promise<AdminSessionPayload | null> {
+  const adminId = await getSessionAdminId();
+  if (!adminId) return null;
+
+  const admin = await prisma.adminUser.findUnique({ where: { id: adminId } });
+  if (!admin || !admin.isActive) return null;
+
+  return {
+    adminId: admin.id,
+    email: admin.email,
+    name: admin.name,
+    role: admin.role,
+    mustChangePassword: admin.mustChangePassword,
+  };
+}
+
+export async function requireOwnerSession(): Promise<
+  | { ok: true; session: AdminSessionPayload }
+  | { ok: false; status: 401 | 403; message: string }
+> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, status: 401, message: "Unauthorized" };
+  if (session.role !== "OWNER") {
+    return {
+      ok: false,
+      status: 403,
+      message: "Only an owner-level admin can perform this action.",
+    };
+  }
+  return { ok: true, session };
 }

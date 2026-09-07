@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
 import { settingsUpdateSchema } from "@/lib/validation";
+import { logActivity } from "@/lib/activity-log";
 
 export async function PATCH(req: NextRequest) {
   const session = await getAdminSession();
@@ -21,6 +22,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ message: "Please check the amounts entered." }, { status: 400 });
   }
 
+  const before = await prisma.referralSettings.findUnique({ where: { id: "singleton" } });
+
   const settings = await prisma.referralSettings.upsert({
     where: { id: "singleton" },
     update: {
@@ -35,6 +38,28 @@ export async function PATCH(req: NextRequest) {
       referrerCreditAmount: parsed.data.referrerCreditAmount,
       referrerGiftCardAmount: parsed.data.referrerGiftCardAmount,
       updatedByAdminId: session.adminId,
+    },
+  });
+
+  await logActivity({
+    admin: session,
+    action: "SETTINGS_CHANGED",
+    targetType: "ReferralSettings",
+    targetId: settings.id,
+    description: "Referral reward settings changed",
+    metadata: {
+      before: before
+        ? {
+            referredDiscountAmount: before.referredDiscountAmount.toString(),
+            referrerCreditAmount: before.referrerCreditAmount.toString(),
+            referrerGiftCardAmount: before.referrerGiftCardAmount.toString(),
+          }
+        : null,
+      after: {
+        referredDiscountAmount: settings.referredDiscountAmount.toString(),
+        referrerCreditAmount: settings.referrerCreditAmount.toString(),
+        referrerGiftCardAmount: settings.referrerGiftCardAmount.toString(),
+      },
     },
   });
 

@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { href: "/admin/referrals", label: "Referrals" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/admins", label: "Admin Users" },
+  { href: "/admin/activity", label: "Activity Log", ownerOnly: true },
   { href: "/admin/settings", label: "Settings" },
 ];
 
@@ -27,15 +28,17 @@ export default async function AdminLayout({
                 JB&apos;s Admin
               </span>
               <nav className="flex flex-wrap gap-4 text-sm font-medium">
-                {NAV_LINKS.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {NAV_LINKS.filter((link) => !link.ownerOnly || session.role === "OWNER").map(
+                  (link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  ),
+                )}
               </nav>
             </div>
             <div className="flex items-center gap-3 text-sm">

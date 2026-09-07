@@ -54,16 +54,28 @@ export const referralFormSchema = z.object({
 
 export type ReferralFormInput = z.infer<typeof referralFormSchema>;
 
+export const REFERRAL_STATUSES = [
+  "SUBMITTED",
+  "CONTACTED",
+  "ESTIMATE_SENT",
+  "BOOKED",
+  "JOB_COMPLETED",
+  "REWARD_EARNED",
+  "REWARD_PAID",
+] as const;
+
+export const REFERRAL_STATUS_LABELS: Record<(typeof REFERRAL_STATUSES)[number], string> = {
+  SUBMITTED: "Submitted",
+  CONTACTED: "Contacted",
+  ESTIMATE_SENT: "Estimate Sent",
+  BOOKED: "Booked",
+  JOB_COMPLETED: "Job Completed",
+  REWARD_EARNED: "Reward Earned",
+  REWARD_PAID: "Reward Paid",
+};
+
 export const statusUpdateSchema = z.object({
-  status: z.enum([
-    "SUBMITTED",
-    "CONTACTED",
-    "ESTIMATE_SENT",
-    "BOOKED",
-    "JOB_COMPLETED",
-    "REWARD_EARNED",
-    "REWARD_PAID",
-  ]),
+  status: z.enum(REFERRAL_STATUSES),
   note: z.string().max(1000).optional(),
   actualJobValue: z.coerce.number().nonnegative().optional(),
   estimatedJobValue: z.coerce.number().nonnegative().optional(),
@@ -78,4 +90,25 @@ export const settingsUpdateSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
+});
+
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(200);
+
+export const editAdminSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().email(),
+  role: z.enum(["OWNER", "ADMIN"]),
+});
+
+export const resetAdminPasswordSchema = z.object({
+  newPassword: passwordSchema,
+  requireChangeOnNextLogin: z.boolean().optional().default(true),
+});
+
+export const changeOwnPasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: passwordSchema,
 });
