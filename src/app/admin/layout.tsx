@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/admins", label: "Admin Users" },
   { href: "/admin/activity", label: "Activity Log", ownerOnly: true },
-  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/settings", label: "Customer Discount" },
 ];
 
 export default async function AdminLayout({
