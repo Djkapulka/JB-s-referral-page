@@ -15,6 +15,7 @@ export const ACTIVITY_ACTION_LABELS: Record<ActivityAction, string> = {
   CUSTOMER_LINK_DEACTIVATED: "Customer referral link deactivated",
   CUSTOMER_LINK_REACTIVATED: "Customer referral link reactivated",
   REFERRAL_STATUS_CHANGED: "Referral status changed",
+  REFERRAL_VERIFIED: "Referral verified",
   REWARD_STATUS_CHANGED: "Reward status changed",
   SETTINGS_CHANGED: "Referral settings changed",
 };
@@ -43,7 +44,7 @@ export const ACTIVITY_ACTION_CATEGORIES: { label: string; actions: ActivityActio
   },
   {
     label: "Referral & reward management",
-    actions: ["REFERRAL_STATUS_CHANGED", "REWARD_STATUS_CHANGED"],
+    actions: ["REFERRAL_STATUS_CHANGED", "REFERRAL_VERIFIED", "REWARD_STATUS_CHANGED"],
   },
   {
     label: "Settings",

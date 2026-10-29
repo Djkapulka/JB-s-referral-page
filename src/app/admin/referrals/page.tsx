@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { searchReferrals } from "@/lib/admin-referrals";
-import { SERVICE_LABELS, REFERRAL_STATUS_LABELS } from "@/lib/validation";
+import { SERVICE_LABELS, REFERRAL_STATUS_LABELS, referralSourceLabel } from "@/lib/validation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import type { ReferralStatus } from "@/generated/prisma/client";
+import type { ReferralStatus, ReferrerVerificationStatus } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +28,12 @@ const currency = (n: number | null | undefined) =>
 export default async function ReferralsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ query?: string; status?: string }>;
+  searchParams: Promise<{ query?: string; status?: string; verification?: string }>;
 }) {
   const params = await searchParams;
   const status = params.status as ReferralStatus | undefined;
-  const referrals = await searchReferrals({ query: params.query, status });
+  const verification = params.verification as ReferrerVerificationStatus | undefined;
+  const referrals = await searchReferrals({ query: params.query, status, verification });
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,6 +59,11 @@ export default async function ReferralsPage({
             </option>
           ))}
         </Select>
+        <Select name="verification" defaultValue={params.verification ?? ""} className="max-w-xs">
+          <option value="">All verification statuses</option>
+          <option value="NEEDS_VERIFICATION">Needs Verification</option>
+          <option value="VERIFIED">Verified</option>
+        </Select>
         <Button type="submit" variant="outline">
           Search
         </Button>
@@ -68,10 +74,14 @@ export default async function ReferralsPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left text-muted-foreground">
-                <th className="p-3 font-medium">Referrer</th>
-                <th className="p-3 font-medium">Referred Lead</th>
+                <th className="p-3 font-medium">Referring Customer</th>
+                <th className="p-3 font-medium">Referred Friend</th>
+                <th className="p-3 font-medium">Phone/Email</th>
                 <th className="p-3 font-medium">Service</th>
+                <th className="p-3 font-medium">Source</th>
                 <th className="p-3 font-medium">Status</th>
+                <th className="p-3 font-medium">Verification</th>
+                <th className="p-3 font-medium">Submitted</th>
                 <th className="p-3 font-medium">Job Value</th>
                 <th className="p-3 font-medium">Reward</th>
               </tr>
@@ -79,7 +89,7 @@ export default async function ReferralsPage({
             <tbody>
               {referrals.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={10} className="p-6 text-center text-muted-foreground">
                     No referrals found.
                   </td>
                 </tr>
@@ -87,7 +97,13 @@ export default async function ReferralsPage({
               {referrals.map((r) => (
                 <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30">
                   <td className="p-3">
-                    {r.referrer.firstName} {r.referrer.lastName}
+                    {r.referrer ? (
+                      `${r.referrer.firstName} ${r.referrer.lastName}`
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {r.referrerFirstName} {r.referrerLastName} (unverified)
+                      </span>
+                    )}
                   </td>
                   <td className="p-3">
                     <Link
@@ -97,11 +113,29 @@ export default async function ReferralsPage({
                       {r.leadFirstName} {r.leadLastName}
                     </Link>
                   </td>
+                  <td className="p-3 text-muted-foreground">
+                    {r.leadPhone ?? r.leadEmail ?? "—"}
+                  </td>
                   <td className="p-3">{SERVICE_LABELS[r.serviceRequested]}</td>
+                  <td className="p-3 text-muted-foreground">{referralSourceLabel(r.source)}</td>
                   <td className="p-3">
                     <Badge variant={STATUS_VARIANTS[r.status]}>
                       {STATUS_LABELS[r.status]}
                     </Badge>
+                  </td>
+                  <td className="p-3">
+                    <Badge
+                      variant={
+                        r.referrerVerificationStatus === "VERIFIED" ? "success" : "danger"
+                      }
+                    >
+                      {r.referrerVerificationStatus === "VERIFIED"
+                        ? "Verified"
+                        : "Needs Verification"}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-muted-foreground">
+                    {r.createdAt.toLocaleDateString()}
                   </td>
                   <td className="p-3">
                     {currency(

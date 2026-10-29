@@ -54,6 +54,70 @@ export const referralFormSchema = z.object({
 
 export type ReferralFormInput = z.infer<typeof referralFormSchema>;
 
+// Public "Refer a Friend" form — unlike the personalized-link form above,
+// the referrer isn't already known from a referral code, so their identity
+// is collected too. Only name is strictly required for each person; contact
+// info requires at least one of email/phone, per the product spec.
+export const publicReferralFormSchema = z
+  .object({
+    referrerFirstName: z.string().trim().min(1, "First name is required").max(80),
+    referrerLastName: z.string().trim().min(1, "Last name is required").max(80),
+    referrerEmail: z.string().trim().email("Enter a valid email").max(254).optional().or(z.literal("")),
+    referrerPhone: z
+      .string()
+      .trim()
+      .min(7, "Enter a valid phone number")
+      .max(20)
+      .regex(phoneRegex, "Enter a valid phone number")
+      .optional()
+      .or(z.literal("")),
+
+    leadFirstName: z.string().trim().min(1, "Friend's first name is required").max(80),
+    leadLastName: z.string().trim().min(1, "Friend's last name is required").max(80),
+    leadEmail: z.string().trim().email("Enter a valid email").max(254).optional().or(z.literal("")),
+    leadPhone: z
+      .string()
+      .trim()
+      .min(7, "Enter a valid phone number")
+      .max(20)
+      .regex(phoneRegex, "Enter a valid phone number")
+      .optional()
+      .or(z.literal("")),
+    serviceRequested: z.enum(SERVICE_TYPES),
+    leadAddress: z.string().trim().max(160).optional().or(z.literal("")),
+    leadCity: z.string().trim().max(80).optional().or(z.literal("")),
+    leadZip: z.string().trim().max(12).optional().or(z.literal("")),
+
+    consentGiven: z.literal(true, {
+      message: "Please confirm you have permission to share your friend's information",
+    }),
+    // Honeypot — same pattern as referralFormSchema above.
+    companyWebsite: z.string().max(500).optional().or(z.literal("")),
+    turnstileToken: z.string().optional(),
+  })
+  .refine((data) => Boolean(data.referrerEmail) || Boolean(data.referrerPhone), {
+    message: "Enter your email or phone number",
+    path: ["referrerEmail"],
+  })
+  .refine((data) => Boolean(data.leadEmail) || Boolean(data.leadPhone), {
+    message: "Enter your friend's email or phone number",
+    path: ["leadEmail"],
+  });
+
+export type PublicReferralFormInput = z.infer<typeof publicReferralFormSchema>;
+
+export const verifyReferralSchema = z.union([
+  z.object({ customerId: z.string().trim().min(1) }),
+  z.object({
+    createCustomer: z.object({
+      firstName: z.string().trim().min(1).max(80),
+      lastName: z.string().trim().min(1).max(80),
+      email: z.string().trim().email().optional().or(z.literal("")),
+      phone: z.string().trim().max(20).optional().or(z.literal("")),
+    }),
+  }),
+]);
+
 export const REFERRAL_STATUSES = [
   "SUBMITTED",
   "CONTACTED",
@@ -73,6 +137,15 @@ export const REFERRAL_STATUS_LABELS: Record<(typeof REFERRAL_STATUSES)[number], 
   REWARD_EARNED: "Reward Earned",
   REWARD_PAID: "Reward Paid",
 };
+
+export const REFERRAL_SOURCE_LABELS: Record<string, string> = {
+  referral_page: "Personalized Link",
+  public_referral_form: "Public Referral Form",
+};
+
+export function referralSourceLabel(source: string): string {
+  return REFERRAL_SOURCE_LABELS[source] ?? source;
+}
 
 export const statusUpdateSchema = z.object({
   status: z.enum(REFERRAL_STATUSES),

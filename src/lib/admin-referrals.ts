@@ -1,17 +1,20 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import type { ReferralStatus } from "@/generated/prisma/client";
+import type { ReferralStatus, ReferrerVerificationStatus } from "@/generated/prisma/client";
 
 export async function searchReferrals({
   query,
   status,
+  verification,
 }: {
   query?: string;
   status?: ReferralStatus;
+  verification?: ReferrerVerificationStatus;
 }) {
   return prisma.referral.findMany({
     where: {
       ...(status && { status }),
+      ...(verification && { referrerVerificationStatus: verification }),
       ...(query && {
         OR: [
           { leadFirstName: { contains: query, mode: "insensitive" } },
@@ -21,6 +24,10 @@ export async function searchReferrals({
           { referrer: { firstName: { contains: query, mode: "insensitive" } } },
           { referrer: { lastName: { contains: query, mode: "insensitive" } } },
           { referrer: { referralCode: { contains: query, mode: "insensitive" } } },
+          { referrerFirstName: { contains: query, mode: "insensitive" } },
+          { referrerLastName: { contains: query, mode: "insensitive" } },
+          { referrerEmail: { contains: query, mode: "insensitive" } },
+          { referrerPhone: { contains: query, mode: "insensitive" } },
         ],
       }),
     },

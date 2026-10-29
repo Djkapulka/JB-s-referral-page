@@ -57,16 +57,42 @@ enum ReferralStatus {
 model Referral {
   id       String @id @default(uuid())
 
-  referrerId String
-  referrer   Customer @relation(fields: [referrerId], references: [id])
+  // Nullable because a referral submitted through the public "Refer a
+  // Friend" form may not yet be reliably matched to an existing customer —
+  // see referrerVerificationStatus. Always set for referrals submitted
+  // through a personalized referral link. onDelete is pinned to Restrict
+  // explicitly (rather than Prisma's default SetNull for optional
+  // relations) so the existing customer-delete safety net in
+  // /api/admin/customers/[id] keeps working exactly as before.
+  referrerId String?
+  referrer   Customer? @relation(fields: [referrerId], references: [id], onDelete: Restrict)
+
+  // Self-reported referrer identity, captured from the public form
+  // regardless of match outcome, so admins can see exactly what was
+  // submitted — including after a match, and always when verification is
+  // still needed. Unused (null) for referrals submitted via a personalized
+  // link, where the referrer is already known via referrerId.
+  referrerFirstName String?
+  referrerLastName  String?
+  referrerEmail     String?
+  referrerPhone     String?
+
+  // Defaults to VERIFIED because every existing referral (and every future
+  // personalized-link referral) already has a known, trusted referrerId.
+  // Only public-form referrals that couldn't be reliably matched are
+  // created as NEEDS_VERIFICATION.
+  referrerVerificationStatus ReferrerVerificationStatus @default(VERIFIED)
 
   leadFirstName String
   leadLastName  String
-  leadPhone     String
-  leadEmail     String
-  leadAddress   String
-  leadCity      String
-  leadZip       String
+  // Nullable: the public referral form only requires at least one of
+  // phone/email, and address/city/zip are optional there. Always populated
+  // for the personalized-link form, which still requires all of them.
+  leadPhone     String?
+  leadEmail     String?
+  leadAddress   String?
+  leadCity      String?
+  leadZip       String?
 
   serviceRequested ServiceType
   consentGiven     Boolean
@@ -100,6 +126,12 @@ model Referral {
   @@index([leadPhone])
   @@index([leadEmail])
   @@index([createdAt])
+  @@index([referrerVerificationStatus])
+}
+
+enum ReferrerVerificationStatus {
+  VERIFIED
+  NEEDS_VERIFICATION
 }
 
 enum ReferralEventType {
@@ -200,6 +232,7 @@ enum ActivityAction {
   CUSTOMER_LINK_DEACTIVATED
   CUSTOMER_LINK_REACTIVATED
   REFERRAL_STATUS_CHANGED
+  REFERRAL_VERIFIED
   REWARD_STATUS_CHANGED
   SETTINGS_CHANGED
 }

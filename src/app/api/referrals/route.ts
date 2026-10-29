@@ -3,8 +3,7 @@ import { prisma } from "@/lib/db";
 import { referralFormSchema } from "@/lib/validation";
 import { checkReferralRateLimit } from "@/lib/rate-limit";
 import { verifyTurnstileToken } from "@/lib/turnstile";
-
-const DUPLICATE_WINDOW_DAYS = 30;
+import { findRecentDuplicateReferral } from "@/lib/referral-duplicate";
 
 function getClientIp(req: NextRequest): string {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -72,18 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Referral link not found." }, { status: 404 });
   }
 
-  const since = new Date();
-  since.setDate(since.getDate() - DUPLICATE_WINDOW_DAYS);
-
-  const duplicate = await prisma.referral.findFirst({
-    where: {
-      createdAt: { gte: since },
-      OR: [
-        { leadPhone: data.leadPhone },
-        { leadEmail: { equals: data.leadEmail, mode: "insensitive" } },
-      ],
-    },
-  });
+  const duplicate = await findRecentDuplicateReferral(data.leadPhone, data.leadEmail);
 
   if (duplicate) {
     return NextResponse.json(

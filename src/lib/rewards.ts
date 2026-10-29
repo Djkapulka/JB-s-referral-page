@@ -19,6 +19,13 @@ export async function getReferralSettings() {
  * completed. Reward amount is snapshotted from current settings at the
  * moment it's earned, so later offer changes don't retroactively change
  * rewards already promised to customers.
+ *
+ * Returns null without creating anything if the referral's referrer hasn't
+ * been verified yet (referrerId is still null) — a referral submitted
+ * through the public form with no reliable customer match must never earn
+ * credit based solely on an unverified name, email, or phone number. Once
+ * an admin verifies and attaches a customer, the verification flow calls
+ * this again to grant the reward retroactively if the job was already done.
  */
 export async function earnRewardForReferral(
   referralId: string,
@@ -30,6 +37,10 @@ export async function earnRewardForReferral(
   const referral = await tx.referral.findUniqueOrThrow({
     where: { id: referralId },
   });
+
+  if (!referral.referrerId) {
+    return null;
+  }
 
   const settings = await tx.referralSettings.upsert({
     where: { id: "singleton" },

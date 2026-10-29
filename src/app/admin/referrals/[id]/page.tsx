@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import { getReferralDetail } from "@/lib/admin-referrals";
-import { SERVICE_LABELS } from "@/lib/validation";
+import { SERVICE_LABELS, referralSourceLabel } from "@/lib/validation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { StatusUpdateForm } from "@/components/admin/status-update-form";
+import { ReferralVerificationForm } from "@/components/admin/referral-verification-form";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +18,25 @@ export default async function ReferralDetailPage({
 
   if (!referral) notFound();
 
+  const needsVerification = referral.referrerVerificationStatus === "NEEDS_VERIFICATION";
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold">
           {referral.leadFirstName} {referral.leadLastName}
         </h1>
-        <p className="text-muted-foreground">
-          Referred by {referral.referrer.firstName} {referral.referrer.lastName}{" "}
-          ({referral.referrer.referralCode})
-        </p>
+        {referral.referrer ? (
+          <p className="text-muted-foreground">
+            Referred by {referral.referrer.firstName} {referral.referrer.lastName}{" "}
+            ({referral.referrer.referralCode})
+          </p>
+        ) : (
+          <p className="flex items-center gap-2 text-muted-foreground">
+            Referred by {referral.referrerFirstName} {referral.referrerLastName}
+            <Badge variant="danger">Needs Verification</Badge>
+          </p>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -34,12 +45,13 @@ export default async function ReferralDetailPage({
             <CardTitle>Lead Details</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            <Row label="Phone" value={referral.leadPhone} />
-            <Row label="Email" value={referral.leadEmail} />
-            <Row label="Address" value={referral.leadAddress} />
-            <Row label="City" value={referral.leadCity} />
-            <Row label="ZIP" value={referral.leadZip} />
+            <Row label="Phone" value={referral.leadPhone ?? "—"} />
+            <Row label="Email" value={referral.leadEmail ?? "—"} />
+            <Row label="Address" value={referral.leadAddress ?? "—"} />
+            <Row label="City" value={referral.leadCity ?? "—"} />
+            <Row label="ZIP" value={referral.leadZip ?? "—"} />
             <Row label="Service" value={SERVICE_LABELS[referral.serviceRequested]} />
+            <Row label="Source" value={referralSourceLabel(referral.source)} />
             <Row label="Consent" value={referral.consentGiven ? "Given" : "Not given"} />
             <Row label="Submitted" value={referral.createdAt.toLocaleString()} />
           </CardContent>
@@ -63,6 +75,35 @@ export default async function ReferralDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {needsVerification && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Referrer Verification Needed</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 text-sm">
+              <p className="text-muted-foreground">
+                This referral was submitted through the public form and
+                couldn&apos;t be reliably matched to an existing customer.
+                Self-reported referrer information:
+              </p>
+              <Row label="Name" value={`${referral.referrerFirstName} ${referral.referrerLastName}`} />
+              <Row label="Email" value={referral.referrerEmail ?? "—"} />
+              <Row label="Phone" value={referral.referrerPhone ?? "—"} />
+            </div>
+            <ReferralVerificationForm
+              referralId={referral.id}
+              prefill={{
+                firstName: referral.referrerFirstName ?? "",
+                lastName: referral.referrerLastName ?? "",
+                email: referral.referrerEmail ?? "",
+                phone: referral.referrerPhone ?? "",
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {referral.reward && (
         <Card>
